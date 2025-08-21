@@ -10,7 +10,38 @@ import numpy as np
 import torchvision
 from PIL import Image
 from functools import partial
+import torch
+from torch.utils.data import Dataset
+from PIL import Image
+import glob
 
+class CustomImageDataset(Dataset):
+    def __init__(self, image_folder, image_size, transform=None):
+        self.image_paths = glob.glob(os.path.join(image_folder, "*.jpg")) + \
+                          glob.glob(os.path.join(image_folder, "*.png")) + \
+                          glob.glob(os.path.join(image_folder, "*.jpeg"))
+        self.transform = transform
+        self.image_size = image_size
+        
+    def __len__(self):
+        return len(self.image_paths)
+    
+    def __getitem__(self, idx):
+        image_path = self.image_paths[idx]
+        image = Image.open(image_path).convert('RGB')
+        
+        if self.transform:
+            image = self.transform(image)
+        else:
+            # 默认变换
+            transform = transforms.Compose([
+                transforms.Resize([self.image_size, self.image_size]),
+                transforms.ToTensor()
+            ])
+            image = transform(image)
+            
+        return image, 0  # 返回图像和伪标签
+    
 class Crop(object):
     def __init__(self, x1, x2, y1, y2):
         self.x1 = x1
@@ -183,6 +214,21 @@ def get_dataset(args, config):
                 transforms.ToTensor()])
             )
             test_dataset = dataset
+            
+    elif config.data.dataset == "CUSTOM_256":
+        dataset = CustomImageDataset(
+            image_folder="/media/zyserver/data16t/lpd/ddrm_512/images_256",
+            image_size=256
+        )
+        test_dataset = dataset
+
+    elif config.data.dataset == "CUSTOM_512":
+        dataset = CustomImageDataset(
+            image_folder="/media/zyserver/data16t/lpd/ddrm_512/images_512",
+            image_size=512
+        )
+        test_dataset = dataset        
+        
     else:
         dataset, test_dataset = None, None
 

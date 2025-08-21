@@ -1,0 +1,14 @@
+
+
+
+python main.py --ni --config imagenet_256.yml --doc imagenet --timesteps 20 --eta 0.85 --etaB 1 --deg sr4 --sigma_0 0.05
+
+
+python main.py --ni --config imagenet_256.yml --doc imagenet --timesteps 20 --eta 0.85 --etaB 1 --deg imp --sigma_0 0.05
+
+
+
+python main.py --ni --config imagenet_256.yml --doc imagenet --timesteps 20 --eta 0.85 --etaB 1 --deg deno --sigma_0 0.1
+
+
+python main.py --ni --config imagenet_512.yml --doc imagenet --timesteps 20 --eta 0.85 --etaB 1 --deg deno --sigma_0 0.1

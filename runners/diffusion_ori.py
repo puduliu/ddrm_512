@@ -127,17 +127,9 @@ class Diffusion(object):
                 if not os.path.exists(ckpt):
                     download('https://openaipublic.blob.core.windows.net/diffusion/jul-2021/%dx%d_diffusion_uncond.pt' % (self.config.data.image_size, self.config.data.image_size), ckpt)
             else:
-                print("---------------uncond---------------------------")
-                print("---------------image_size------------", self.config.data.image_size)
-                # ckpt = os.path.join(self.args.exp, "logs/imagenet/256x256_diffusion_uncond.pt")
-                if self.config.data.image_size == 256:
-                    ckpt = os.path.join(self.args.exp, 'logs/imagenet/%dx%d_diffusion_uncond.pt' % (self.config.data.image_size, self.config.data.image_size))
-                else:
-                    ckpt = os.path.join(self.args.exp, 'logs/imagenet/%dx%d_diffusion_uncond_finetune_008100.pt' % (self.config.data.image_size, self.config.data.image_size))
-
+                ckpt = os.path.join(self.args.exp, "logs/imagenet/256x256_diffusion_uncond.pt")
                 if not os.path.exists(ckpt):
-                    print("-----------------------model not exits-----------------------------")
-                    # download('https://openaipublic.blob.core.windows.net/diffusion/jul-2021/256x256_diffusion_uncond.pt', ckpt)
+                    download('https://openaipublic.blob.core.windows.net/diffusion/jul-2021/256x256_diffusion_uncond.pt', ckpt)
                 
             
             model.load_state_dict(torch.load(ckpt, map_location=self.device))
@@ -229,7 +221,6 @@ class Diffusion(object):
             H_funcs = Inpainting(config.data.channels, config.data.image_size, missing, self.device)
         elif deg == 'deno':
             from functions.svd_replacement import Denoising
-            print("-----------------------------Denoising================================")
             H_funcs = Denoising(config.data.channels, self.config.data.image_size, self.device)
         elif deg[:10] == 'sr_bicubic':
             factor = int(deg[10:])
@@ -290,7 +281,7 @@ class Diffusion(object):
             x_orig = data_transform(self.config, x_orig)
 
             y_0 = H_funcs.H(x_orig)
-            # y_0 = y_0 + sigma_0 * torch.randn_like(y_0) # TODO 如果原图已经是噪声图像这个去除。其它退化场景需要加噪声
+            y_0 = y_0 + sigma_0 * torch.randn_like(y_0)
 
             pinv_y_0 = H_funcs.H_pinv(y_0).view(y_0.shape[0], config.data.channels, self.config.data.image_size, self.config.data.image_size)
             if deg[:6] == 'deblur': pinv_y_0 = y_0.view(y_0.shape[0], config.data.channels, self.config.data.image_size, self.config.data.image_size)
