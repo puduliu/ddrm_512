@@ -11,7 +11,7 @@ import torch.utils.data as data
 from models.diffusion import Model
 from datasets import get_dataset, data_transform, inverse_data_transform
 from functions.ckpt_util import get_ckpt_path, download
-from functions.denoising import efficient_generalized_steps
+from functions.denoising_pixel import efficient_generalized_steps
 
 import torchvision.utils as tvu
 
@@ -308,9 +308,6 @@ class Diffusion(object):
             # y_0 = y_0 + sigma_0 * torch.randn_like(y_0) # TODO 如果原图已经是噪声图像这个去除。其它退化场景需要加噪声
 
             pinv_y_0 = H_funcs.H_pinv(y_0).view(y_0.shape[0], config.data.channels, self.config.data.image_size, self.config.data.image_size)
-            if deg[:6] == 'deblur': pinv_y_0 = y_0.view(y_0.shape[0], config.data.channels, self.config.data.image_size, self.config.data.image_size)
-            elif deg == 'color': pinv_y_0 = y_0.view(y_0.shape[0], 1, self.config.data.image_size, self.config.data.image_size).repeat(1, 3, 1, 1)
-            elif deg[:3] == 'inp': pinv_y_0 += H_funcs.H_pinv(H_funcs.H(torch.ones_like(pinv_y_0))).reshape(*pinv_y_0.shape) - 1
 
             for i in range(len(pinv_y_0)):
                 tvu.save_image(
@@ -331,7 +328,7 @@ class Diffusion(object):
             # print("==============================y.device:", y_0.device, " x.device:", x.device)
             # NOTE: This means that we are producing each predicted x0, not x_{t-1} at timestep t.
             with torch.no_grad():
-                x, _ = self.sample_image(x, model, H_funcs, y_0, sigma_0, last=False, cls_fn=cls_fn, classes=classes)
+                x, _ = self.sample_image(x, model, H_funcs, pinv_y_0, sigma_0, last=False, cls_fn=cls_fn, classes=classes)
 
             x = [inverse_data_transform(config, y) for y in x]
 

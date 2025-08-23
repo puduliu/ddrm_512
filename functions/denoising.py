@@ -12,6 +12,7 @@ def efficient_generalized_steps(x, seq, model, b, H_funcs, y_0, sigma_0, etaB, e
     with torch.no_grad():
         #setup vectors used in the algorithm
         singulars = H_funcs.singulars()
+        print("----------------------singulars.shape = ", singulars.shape)
         Sigma = torch.zeros(x.shape[1]*x.shape[2]*x.shape[3], device=x.device)
         Sigma[:singulars.shape[0]] = singulars
         U_t_y = H_funcs.Ut(y_0)
@@ -20,6 +21,8 @@ def efficient_generalized_steps(x, seq, model, b, H_funcs, y_0, sigma_0, etaB, e
         #initialize x_T as given in the paper
         largest_alphas = compute_alpha(b, (torch.ones(x.size(0)) * seq[-1]).to(x.device).long())
         largest_sigmas = (1 - largest_alphas).sqrt() / largest_alphas.sqrt()
+        print("----------------------------------sigma_0 = ", sigma_0)
+        print("----------------------------------singulars * largest_sigmas[0, 0, 0, 0] = ", singulars * largest_sigmas[0, 0, 0, 0])
         large_singulars_index = torch.where(singulars * largest_sigmas[0, 0, 0, 0] > sigma_0)
         inv_singulars_and_zero = torch.zeros(x.shape[1] * x.shape[2] * x.shape[3]).to(singulars.device)
         inv_singulars_and_zero[large_singulars_index] = sigma_0 / singulars[large_singulars_index]

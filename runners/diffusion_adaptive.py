@@ -11,13 +11,14 @@ import torch.utils.data as data
 from models.diffusion import Model
 from datasets import get_dataset, data_transform, inverse_data_transform
 from functions.ckpt_util import get_ckpt_path, download
-from functions.denoising import efficient_generalized_steps
+from functions.denoising_adaptive import efficient_generalized_steps
 
 import torchvision.utils as tvu
 
 from guided_diffusion.unet import UNetModel
 from guided_diffusion.script_util import create_model, create_classifier, classifier_defaults, args_to_dict
 import random
+from datasets.estimate_noise import estimate_sigma, estimate_impulse_noise_level,local_variance_map
 
 def get_beta_schedule(beta_schedule, *, beta_start, beta_end, num_diffusion_timesteps):
     def sigmoid(x):
@@ -117,7 +118,7 @@ class Diffusion(object):
                 raise ValueError
             model.load_state_dict(torch.load(ckpt, map_location=self.device))
             model.to(self.device)
-            # model = torch.nn.DataParallel(model)
+            model = torch.nn.DataParallel(model)
 
         elif self.config.model.type == 'openai':
             config_dict = vars(self.config.model)
@@ -223,22 +224,13 @@ class Diffusion(object):
                 loaded = np.load("inp_masks/lorem3.npy")
                 mask = torch.from_numpy(loaded).to(self.device).reshape(-1)
                 missing_r = torch.nonzero(mask == 0).long().reshape(-1) * 3
-            elif deg == 'inp_test':
-                print("-----------------------------Inpainting================================")
-                loaded = np.load("inp_masks/00055_00_256_mask.npy")
-                print("-----------------------------Inpainting1111================================")
-                mask = torch.from_numpy(loaded).to(self.device).reshape(-1)
-                missing_r = torch.nonzero(mask == 0).long().reshape(-1) * 3
-                print("-----------------------------Inpainting2222================================")
             else:
                 missing_r = torch.randperm(config.data.image_size**2)[:config.data.image_size**2 // 2].to(self.device).long() * 3
             missing_g = missing_r + 1
             missing_b = missing_g + 1
             missing = torch.cat([missing_r, missing_g, missing_b], dim=0)
-            print("-----------------------------Inpainting33333================================")
-            print("-------------------config.data.channels = ", config.data.channels, "----config.data.image_size = ", config.data.image_size)
             H_funcs = Inpainting(config.data.channels, config.data.image_size, missing, self.device)
-            print("-----------------------------Inpainting44444================================")
+            print("-----------------------------Denoising================================")
         elif deg == 'deno':
             from functions.svd_replacement import Denoising
             print("-----------------------------Denoising================================")
@@ -289,7 +281,6 @@ class Diffusion(object):
         else:
             print("ERROR: degradation type not supported")
             quit()
-        
         args.sigma_0 = 2 * args.sigma_0 #to account for scaling to [-1,1]
         sigma_0 = args.sigma_0
         
@@ -300,11 +291,14 @@ class Diffusion(object):
         pbar = tqdm.tqdm(val_loader)
         for x_orig, classes in pbar:
             x_orig = x_orig.to(self.device)
+            
+            sigma_0_map = 2 * local_variance_map(x_orig)
+            
             x_orig = data_transform(self.config, x_orig)
-            print("==============================x_orig.device:", x_orig.device)
+            # print("==============================x_orig.device:", x_orig.device)
 
             y_0 = H_funcs.H(x_orig)
-            print("==============================y_0.device:", y_0.device)
+            # print("==============================y_0.device:", y_0.device)
             # y_0 = y_0 + sigma_0 * torch.randn_like(y_0) # TODO 如果原图已经是噪声图像这个去除。其它退化场景需要加噪声
 
             pinv_y_0 = H_funcs.H_pinv(y_0).view(y_0.shape[0], config.data.channels, self.config.data.image_size, self.config.data.image_size)
@@ -331,7 +325,7 @@ class Diffusion(object):
             # print("==============================y.device:", y_0.device, " x.device:", x.device)
             # NOTE: This means that we are producing each predicted x0, not x_{t-1} at timestep t.
             with torch.no_grad():
-                x, _ = self.sample_image(x, model, H_funcs, y_0, sigma_0, last=False, cls_fn=cls_fn, classes=classes)
+                x, _ = self.sample_image(x, model, H_funcs, y_0, sigma_0, sigma_0_map, last=False, cls_fn=cls_fn, classes=classes)
 
             x = [inverse_data_transform(config, y) for y in x]
 
@@ -354,11 +348,11 @@ class Diffusion(object):
         print("Total Average PSNR: %.2f" % avg_psnr)
         print("Number of samples: %d" % (idx_so_far - idx_init))
 
-    def sample_image(self, x, model, H_funcs, y_0, sigma_0, last=True, cls_fn=None, classes=None):
+    def sample_image(self, x, model, H_funcs, y_0, sigma_0, sigma_0_map, last=True, cls_fn=None, classes=None):
         skip = self.num_timesteps // self.args.timesteps
         seq = range(0, self.num_timesteps, skip)
         
-        x = efficient_generalized_steps(x, seq, model, self.betas, H_funcs, y_0, sigma_0, \
+        x = efficient_generalized_steps(x, seq, model, self.betas, H_funcs, y_0, sigma_0, sigma_0_map, \
             etaB=self.args.etaB, etaA=self.args.eta, etaC=self.args.eta, cls_fn=cls_fn, classes=classes)
         if last:
             x = x[0][-1]

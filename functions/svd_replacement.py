@@ -109,20 +109,36 @@ class GeneralH(H_functions):
 #Inpainting
 class Inpainting(H_functions):
     def __init__(self, channels, img_dim, missing_indices, device):
+        # self.channels = channels
+        # self.img_dim = img_dim
+        # self._singulars = torch.ones(channels * img_dim**2 - missing_indices.shape[0]).to(device)
+        # self.missing_indices = missing_indices
+        # print("---------------------init Inpainting1111")
+        # self.kept_indices = torch.Tensor([i for i in range(channels * img_dim**2) if i not in missing_indices]).to(device).long()
+        # print("---------------------init Inpainting2222")
+        
         self.channels = channels
         self.img_dim = img_dim
-        self._singulars = torch.ones(channels * img_dim**2 - missing_indices.shape[0]).to(device)
-        self.missing_indices = missing_indices
-        self.kept_indices = torch.Tensor([i for i in range(channels * img_dim**2) if i not in missing_indices]).to(device).long()
+        total = channels * img_dim**2
+        # 生成完整索引
+        all_indices = torch.arange(total, device=device)
+        # 用布尔掩码取 kept indices
+        mask = torch.ones(total, dtype=torch.bool, device=device)
+        mask[missing_indices] = False
+        self.kept_indices = all_indices[mask]
 
-    def V(self, vec):
+        self.missing_indices = missing_indices
+        self._singulars = torch.ones(total - missing_indices.shape[0], device=device)
+        
+        # V：从 [known | missing] 向量 → 还原到完整图像索引。
+    def V(self, vec): # TODO # self.kept_indices 已知像素的位置;  self.missing_indices  # 需要补全的位置
         temp = vec.clone().reshape(vec.shape[0], -1)
         out = torch.zeros_like(temp)
         out[:, self.kept_indices] = temp[:, :self.kept_indices.shape[0]]
         out[:, self.missing_indices] = temp[:, self.kept_indices.shape[0]:]
         return out.reshape(vec.shape[0], -1, self.channels).permute(0, 2, 1).reshape(vec.shape[0], -1)
 
-    def Vt(self, vec):
+    def Vt(self, vec): # Vt：从完整图像 → 抽取并重排为 [known | missing] 向量。
         temp = vec.clone().reshape(vec.shape[0], self.channels, -1).permute(0, 2, 1).reshape(vec.shape[0], -1)
         out = torch.zeros_like(temp)
         out[:, :self.kept_indices.shape[0]] = temp[:, self.kept_indices]
@@ -143,6 +159,24 @@ class Inpainting(H_functions):
         reshaped = vec.clone().reshape(vec.shape[0], -1)
         temp[:, :reshaped.shape[1]] = reshaped
         return temp
+
+# 举例
+# kept_indices    = [0, 2, 4]
+# missing_indices = [1, 3, 5]
+
+# temp = [[10, 20, 30, 40, 50, 60]]   # shape = (1, 6)
+
+# temp[:, :3] = [10, 20, 30] （已知部分）
+
+# temp[:, 3:] = [40, 50, 60] （缺失部分）
+
+# out[:, kept_indices]    = [10, 20, 30]   # 放到位置 [0, 2, 4]
+# out[:, missing_indices] = [40, 50, 60]   # 放到位置 [1, 3, 5]
+
+# out = [[10, 40, 20, 50, 30, 60]]
+
+
+
 
 #Denoising
 class Denoising(H_functions):

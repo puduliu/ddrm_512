@@ -12,7 +12,29 @@ python main.py --ni --config imagenet_256.yml --doc imagenet --timesteps 20 --et
 
 python main_adaptive.py --ni --config imagenet_256.yml --doc imagenet --timesteps 20 --eta 0.85 --etaB 1 --deg deno --sigma_0 0.1
 
+python main_adaptive.py --ni --config imagenet_256.yml --doc imagenet --timesteps 20 --eta 0.85 --etaB 1 --deg inp_test --sigma_0 0.1
+
 python main.py --ni --config imagenet_512.yml --doc imagenet --timesteps 20 --eta 0.85 --etaB 1 --deg deno --sigma_0 0.1
 
 
 python main.py --ni --config imagenet_256.yml --doc imagenet --timesteps 20 --eta 0.85 --etaB 1 --deg inp_test --sigma_0 0.1
+
+
+
+python main_pixel.py --ni --config imagenet_256.yml --doc imagenet --timesteps 20 --eta 0.85 --etaB 1 --deg deno --sigma_0 0.35
+python main.py --ni --config imagenet_256.yml --doc imagenet --timesteps 20 --eta 0.85 --etaB 1 --deg deno --sigma_0 0.35
+========
+现在这两种指标差不多。后续在像素空间上设计自己的算法
+
+
+
+python main_adaptive.py --ni --config imagenet_256.yml --doc imagenet --timesteps 20 --eta 0.85 --etaB 1 --deg deno --sigma_0 0.35
+
+
+
+
+========================================0822=============================================
+1、使用impainting可以成功修复椒盐噪声
+2、对比一下denoising和impainting的区别，把impainting结合一下denoising
+3、可以试试影响denoising的奇异值分解
+4、去噪是从奇异值都为1的情况下进行考虑的。而impainting是从奇异值为0的情况下进行考虑的。我既然是像素空间就尽量从奇异值都为1的情况下进行考虑
