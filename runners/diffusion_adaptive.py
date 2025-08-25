@@ -11,14 +11,14 @@ import torch.utils.data as data
 from models.diffusion import Model
 from datasets import get_dataset, data_transform, inverse_data_transform
 from functions.ckpt_util import get_ckpt_path, download
-from functions.denoising_adaptive import efficient_generalized_steps
+from functions.denoising_pixel import efficient_generalized_steps
 
 import torchvision.utils as tvu
 
 from guided_diffusion.unet import UNetModel
 from guided_diffusion.script_util import create_model, create_classifier, classifier_defaults, args_to_dict
 import random
-from datasets.estimate_noise import estimate_sigma, estimate_impulse_noise_level,local_variance_map
+from datasets.estimate_noise import estimate_sigma, estimate_sigma_local
 
 def get_beta_schedule(beta_schedule, *, beta_start, beta_end, num_diffusion_timesteps):
     def sigmoid(x):
@@ -292,8 +292,20 @@ class Diffusion(object):
         for x_orig, classes in pbar:
             x_orig = x_orig.to(self.device)
             
-            sigma_0_map = 2 * local_variance_map(x_orig)
+            # sigma_0_map = 2 * estimate_sigma_local(x_orig)
+            sigma_test = estimate_sigma(x_orig)
+            print("-------------------------estimate_sigma = ", sigma_test)
+            sigma_0_map = estimate_sigma_local(x_orig)
+            sigma_0_map[sigma_0_map <= 0.4] = 0
+            sigma_0_map[sigma_0_map > 0.4] = 0.5
+            sigma_0_map += sigma_test
+            print("---------------------sigma_0_map.shape = ", sigma_0_map.shape)
+            sigma_map_2d = sigma_0_map[0, 0].detach().cpu().numpy()  # shape [256, 256] TODO 保存的已经是乘2的了
+            np.savetxt("sigma_0_map.txt", sigma_map_2d, fmt="%.1f")   
             
+            sigma_0_map = 2 * sigma_0_map
+            
+         
             x_orig = data_transform(self.config, x_orig)
             # print("==============================x_orig.device:", x_orig.device)
 
@@ -325,7 +337,8 @@ class Diffusion(object):
             # print("==============================y.device:", y_0.device, " x.device:", x.device)
             # NOTE: This means that we are producing each predicted x0, not x_{t-1} at timestep t.
             with torch.no_grad():
-                x, _ = self.sample_image(x, model, H_funcs, y_0, sigma_0, sigma_0_map, last=False, cls_fn=cls_fn, classes=classes)
+                x, _ = self.sample_image(x, model, H_funcs, pinv_y_0, sigma_0, sigma_0_map, last=False, cls_fn=cls_fn, classes=classes) # TODO输入像素分辨率
+                # x, _ = self.sample_image(x, model, H_funcs, y_0, sigma_0, sigma_0_map, last=False, cls_fn=cls_fn, classes=classes)
 
             x = [inverse_data_transform(config, y) for y in x]
 

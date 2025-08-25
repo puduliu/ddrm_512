@@ -64,16 +64,40 @@ def estimate_sigma(y_tensor, kernel_size=5): # kernel_size越大 平滑程度越
     sigma_eq = torch.std(noise)
     return sigma_eq.item()
 
+
 def estimate_sigma_local(y_tensor, kernel_size=5): # kernel_size越大 平滑程度越高.
-    # print ("-------------------------y_tensor.shape = ", y_tensor.shape)
     y_blur = F.avg_pool2d(y_tensor, kernel_size=kernel_size, stride=1, padding=kernel_size // 2)
-    # y_blur = gaussian_blur(y_tensor, kernel_size=kernel_size, sigma=1.0)
-    # print ("--------------------------------type = ", type(y_blur))
     save_image(y_blur, "y_blur.png")
     noise = y_tensor - y_blur
-    noise_var_map = noise ** 2 
+    # noise_var_map = noise ** 2 
+    # noise_var_map = torch.sqrt(torch.abs(noise) # torch.abs(noise)
+    noise_var_map = torch.abs(noise)
+    # noise_var_map = noise_var_map / noise_var_map.max()  # 归一化到 [0,1]
+    print("-----------------------noise_var_map.shape = ", noise_var_map.shape)
     save_image(noise_var_map, "noise_var.png") 
     return noise_var_map
+
+# def estimate_sigma_local(y_tensor, kernel_size=5):
+#     """
+#     返回每个像素的局部噪声标准差 (sigma map)
+#     y_tensor: [B,C,H,W]
+#     """
+#     # 先平滑得到近似干净图像
+#     y_blur = F.avg_pool2d(y_tensor, kernel_size=kernel_size, stride=1, padding=kernel_size // 2)
+
+#     # 残差噪声
+#     noise = y_tensor - y_blur
+
+#     # 残差平方
+#     noise_sq = noise ** 2
+
+#     # 在局部窗口内求均值，相当于局部方差估计
+#     local_var = F.avg_pool2d(noise_sq, kernel_size=kernel_size, stride=1, padding=kernel_size // 2)
+
+#     # 标准差 = sqrt(方差)
+#     local_sigma = torch.sqrt(local_var + 1e-8)
+#     save_image(local_sigma, "local_sigma.png") 
+#     return local_sigma  # [B,C,H,W] 每个像素的局部sigma
 
 def local_variance_map(noise, kernel_size=5):
     # 局部均值

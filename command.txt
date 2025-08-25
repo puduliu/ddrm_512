@@ -27,9 +27,9 @@ python main.py --ni --config imagenet_256.yml --doc imagenet --timesteps 20 --et
 现在这两种指标差不多。后续在像素空间上设计自己的算法
 
 
-
-python main_adaptive.py --ni --config imagenet_256.yml --doc imagenet --timesteps 20 --eta 0.85 --etaB 1 --deg deno --sigma_0 0.35
-
+# 18.47
+python main_adaptive.py --ni --config imagenet_256.yml --doc imagenet --timesteps 20 --eta 0.85 --etaB 1 --deg deno --sigma_0 0
+estimate_sigma_local 噪声估计得用这个
 
 
 
