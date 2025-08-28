@@ -25,7 +25,7 @@ class CustomImageDataset(Dataset):
         
     def __len__(self):
         return len(self.image_paths)
-    
+
     def __getitem__(self, idx):
         image_path = self.image_paths[idx]
         image = Image.open(image_path).convert('RGB')
@@ -39,8 +39,25 @@ class CustomImageDataset(Dataset):
                 transforms.ToTensor()
             ])
             image = transform(image)
+        
+        filename = os.path.basename(image_path)   # ✅ 只取文件名，不要路径
+        return image, 0, filename   # 返回图像, 标签, 文件名
+    
+    # def __getitem__(self, idx):
+    #     image_path = self.image_paths[idx]
+    #     image = Image.open(image_path).convert('RGB')
+        
+    #     if self.transform:
+    #         image = self.transform(image)
+    #     else:
+    #         # 默认变换
+    #         transform = transforms.Compose([
+    #             transforms.Resize([self.image_size, self.image_size]),
+    #             transforms.ToTensor()
+    #         ])
+    #         image = transform(image)
             
-        return image, 0  # 返回图像和伪标签
+    #     return image, 0  # 返回图像和伪标签
     
 class Crop(object):
     def __init__(self, x1, x2, y1, y2):
@@ -217,7 +234,7 @@ def get_dataset(args, config):
             
     elif config.data.dataset == "CUSTOM_256":
         dataset = CustomImageDataset(
-            image_folder="/media/zyserver/data16t/lpd/ddrm_512/images/source_1_impulse_0.04",
+            image_folder="/media/zyserver/data16t/lpd/ddrm_512/ADR_ablation",
             # image_folder="/media/zyserver/data16t/lpd/ddrm_512/images/source_1_gau_0.1",
             image_size=256
         )

@@ -19,6 +19,7 @@ from guided_diffusion.unet import UNetModel
 from guided_diffusion.script_util import create_model, create_classifier, classifier_defaults, args_to_dict
 import random
 from datasets.estimate_noise import estimate_sigma, estimate_sigma_local
+from torchvision.utils import save_image
 
 def get_beta_schedule(beta_schedule, *, beta_start, beta_end, num_diffusion_timesteps):
     def sigmoid(x):
@@ -289,16 +290,24 @@ class Diffusion(object):
         idx_so_far = args.subset_start
         avg_psnr = 0.0
         pbar = tqdm.tqdm(val_loader)
-        for x_orig, classes in pbar:
+        print("-------------------config.sampling.batch_size = ", config.sampling.batch_size)
+        for x_orig, classes, filename in pbar:
             x_orig = x_orig.to(self.device)
             
             # sigma_0_map = 2 * estimate_sigma_local(x_orig)
-            sigma_test = estimate_sigma(x_orig)
-            print("-------------------------estimate_sigma = ", sigma_test)
-            sigma_0_map = estimate_sigma_local(x_orig)
-            sigma_0_map[sigma_0_map <= 0.4] = 0
-            sigma_0_map[sigma_0_map > 0.4] = 0.5
-            sigma_0_map += sigma_test
+            sigma_0 = estimate_sigma(x_orig) # TODO 这个是一个常数
+            print("-------------------------estimate_sigma = ", sigma_0)
+            threshold = 0.4
+            sigma_0_map = estimate_sigma_local(x_orig) # sigma_0_map是一个
+            print("---------------------sigma_0_map.shape = ", sigma_0_map.shape)
+            sigma_0_map[sigma_0_map <= threshold] = 0
+            sigma_0_map[sigma_0_map > threshold] = 0.5
+            sigma_0_map += sigma_0
+            # save_image(sigma_0_map, f"sigma_0_map.png") 
+            sigma_gray = sigma_0_map.mean(dim=1, keepdim=True)  # 转成单通道灰度
+            # 保存为灰度图
+            save_image(sigma_gray, f"sigma_0_map_{filename}.png")
+            
             print("---------------------sigma_0_map.shape = ", sigma_0_map.shape)
             sigma_map_2d = sigma_0_map[0, 0].detach().cpu().numpy()  # shape [256, 256] TODO 保存的已经是乘2的了
             np.savetxt("sigma_0_map.txt", sigma_map_2d, fmt="%.1f")   
