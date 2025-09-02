@@ -234,7 +234,7 @@ def get_dataset(args, config):
             
     elif config.data.dataset == "CUSTOM_256":
         dataset = CustomImageDataset(
-            image_folder="/media/zyserver/data16t/lpd/ddrm_512/ADR_ablation",
+            image_folder="/media/zyserver/data16t/lpd/ddrm_512/test",
             # image_folder="/media/zyserver/data16t/lpd/ddrm_512/images/source_1_gau_0.1",
             image_size=256
         )
